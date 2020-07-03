@@ -75,6 +75,7 @@ import {KeyboardShortcutService} from "core-app/modules/a11y/keyboard-shortcut-s
 import {globalDynamicComponents} from "core-app/global-dynamic-components.const";
 import {OpenprojectMembersModule} from "core-app/modules/members/members.module";
 import {OpenprojectEnterpriseModule} from "core-components/enterprise/openproject-enterprise.module";
+import { OpenProjectDirectFileUploadService } from './components/api/op-file-upload/op-direct-file-upload.service';
 
 @NgModule({
   imports: [
@@ -139,6 +140,7 @@ import {OpenprojectEnterpriseModule} from "core-components/enterprise/openprojec
     { provide: APP_INITIALIZER, useFactory: initializeServices, deps: [Injector], multi: true },
     PaginationService,
     OpenProjectFileUploadService,
+    OpenProjectDirectFileUploadService,
     // Split view
     CommentService,
     ConfirmDialogService,

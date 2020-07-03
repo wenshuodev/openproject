@@ -216,18 +216,6 @@ export class WorkPackageBaseResource extends HalResource {
       (!this.isReadonly || property === 'status');
   }
 
-  private performUpload(files:UploadFile[]) {
-    let href = '';
-
-    if (this.isNew) {
-      href = this.pathHelper.api.v3.attachments.path;
-    } else {
-      href = this.attachments.$href!;
-    }
-
-    return this.opFileUpload.uploadAndMapResponse(href, files);
-  }
-
   public getSchemaName(name:string):string {
     if (this.isMilestone && (name === 'startDate' || name === 'dueDate')) {
       return 'date';

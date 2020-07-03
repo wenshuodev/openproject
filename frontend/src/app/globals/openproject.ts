@@ -62,12 +62,32 @@ export class OpenProject {
     return jQuery('meta[name=openproject_initializer]').data('edition');
   }
 
+  public get attachmentsStorage():string {
+    return jQuery('meta[name=openproject_initializer]').data('attachmentsStorage');
+  }
+
+  public get directUploads():boolean {
+    return jQuery('meta[name=openproject_initializer]').data('directUploads');
+  }
+
   public get isStandardEdition():boolean {
     return this.edition === "standard";
   }
 
   public get isBimEdition():boolean {
     return this.edition === "bim";
+  }
+
+  public get isRemoteAttachments():boolean {
+    return this.attachmentsStorage === "remote";
+  }
+
+  public get isLocalAttachments():boolean {
+    return this.attachmentsStorage === "local";
+  }
+
+  public get isDirectUploads():boolean {
+    return this.directUploads === true;
   }
 
   /**

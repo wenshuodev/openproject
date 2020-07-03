@@ -267,4 +267,41 @@ describe 'layouts/base', type: :view do
       end
     end
   end
+
+  describe 'openproject_initializer meta tag' do
+    let(:current_user) { anonymous }
+    let(:base) { 'meta[name=openproject_initializer]' }
+
+    before do
+      render
+    end
+
+    it 'has the meta tag' do
+      expect(rendered).to have_selector(base, visible: false)
+    end
+
+    it 'includes storage config' do
+      expect(rendered).to have_selector(base + "[data-attachments-storage=local]", visible: false)
+    end
+
+    it 'includes direct uploads config' do
+      expect(rendered).to have_selector(base + "[data-direct-uploads=false]", visible: false)
+    end
+
+    context(
+      'with S3 attachments',
+      with_config: {
+        attachments_storage: :fog,
+        fog: { credentials: { provider: 'AWS' } }
+      }
+    ) do
+      it 'has storage as remote' do
+        expect(rendered).to have_selector(base + "[data-attachments-storage=remote]", visible: false)
+      end
+
+      it 'has direct uploads as true' do
+        expect(rendered).to have_selector(base + "[data-direct-uploads=true]", visible: false)
+      end
+    end
+  end
 end

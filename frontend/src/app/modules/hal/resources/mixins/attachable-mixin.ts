@@ -33,6 +33,7 @@ import {HalResourceNotificationService} from "core-app/modules/hal/services/hal-
 import {PathHelperService} from 'core-app/modules/common/path-helper/path-helper.service';
 import {NotificationsService} from 'core-app/modules/common/notifications/notifications.service';
 import {HttpErrorResponse} from "@angular/common/http";
+import { OpenProjectDirectFileUploadService } from 'core-app/components/api/op-file-upload/op-direct-file-upload.service';
 
 type Constructor<T = {}> = new (...args:any[]) => T;
 
@@ -43,6 +44,7 @@ export function Attachable<TBase extends Constructor<HalResource>>(Base:TBase) {
     private NotificationsService:NotificationsService;
     private halNotification:HalResourceNotificationService;
     private opFileUpload:OpenProjectFileUploadService;
+    private opDirectFileUpload:OpenProjectDirectFileUploadService;
     private pathHelper:PathHelperService;
 
     /**
@@ -166,15 +168,25 @@ export function Attachable<TBase extends Constructor<HalResource>>(Base:TBase) {
     }
 
     private performUpload(files:UploadFile[]) {
-      let href = '';
+      let href: string = "";
 
-      if (this.isNew || !this.id || !this.attachmentsBackend) {
+      if (this.isDirectUpload) {
+        if (this.$links.prepareAttachment) {
+          return this.opDirectFileUpload.uploadAndMapResponse(this.$links.prepareAttachment.href, files);
+        } else if (this.isNew) {
+          return this.opDirectFileUpload.uploadAndMapResponse(this.pathHelper.api.v3.attachments.path + '/prepare', files);
+        }
+      } else if (this.isNew || !this.id || !this.attachmentsBackend) {
         href = this.pathHelper.api.v3.attachments.path;
       } else {
         href = this.addAttachment.$link.href;
       }
 
       return this.opFileUpload.uploadAndMapResponse(href, files);
+    }
+
+    private get isDirectUpload():boolean {
+      return window.OpenProject.isRemoteAttachments && window.OpenProject.isDirectUploads;
     }
 
     private updateState() {
@@ -192,6 +204,9 @@ export function Attachable<TBase extends Constructor<HalResource>>(Base:TBase) {
       }
       if (!this.opFileUpload) {
         this.opFileUpload = this.injector.get(OpenProjectFileUploadService);
+      }
+      if (!this.opDirectFileUpload) {
+        this.opDirectFileUpload = this.injector.get(OpenProjectDirectFileUploadService);
       }
 
       if (!this.pathHelper) {

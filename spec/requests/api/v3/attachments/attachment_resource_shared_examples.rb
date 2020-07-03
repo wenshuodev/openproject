@@ -29,6 +29,161 @@
 require 'spec_helper'
 require 'rack/test'
 
+shared_examples 'it supports direct uploads' do
+  include Rack::Test::Methods
+  include API::V3::Utilities::PathHelper
+  include FileHelpers
+
+  let(:container_href) { raise "define me!" }
+  let(:request_path) { raise "define me!" }
+
+  let(:fog_attachment_class) do
+    class FogAttachment < Attachment
+      # Remounting the uploader overrides the original file setter taking care of setting,
+      # among other things, the content type. So we have to restore that original
+      # method this way.
+      # We do this in a new, separate class, as to not interfere with any other specs.
+      alias_method :set_file, :file=
+      mount_uploader :file, FogFileUploader
+      alias_method :file=, :set_file
+    end
+
+    FogAttachment
+  end
+
+  before do
+    Fog.mock!
+
+    connection = Fog::Storage.new provider: "AWS"
+    connection.directories.create key: "my-bucket"
+
+    CarrierWave::Configuration.configure_fog!(
+      credentials: OpenProject::Configuration.fog_credentials,
+      directory: "my-bucket",
+      public: false
+    )
+
+    allow(Attachment).to receive(:create) do |*args|
+      # We don't use create here because this would cause an infinite loop as FogAttachment's #create
+      # uses the base class's #create which is what we are mocking here. All this is necessary to begin
+      # with because the Attachment class is initialized with the LocalFileUploader before this test
+      # is ever run and we need remote attachments using the FogFileUploader in this scenario.
+      record = fog_attachment_class.new *args
+      record.save
+      record
+    end
+
+    allow(User).to receive(:current).and_return current_user
+  end
+
+  describe 'POST /prepare', with_settings: { attachment_max_size: 512 } do
+    let(:request_parts) { { metadata: metadata, file: file } }
+    let(:metadata) { { fileName: 'cat.png', fileSize: file.size }.to_json }
+    let(:file) { mock_uploaded_file(name: 'original-filename.txt') }
+
+    def request!
+      post request_path, request_parts
+    end
+
+    subject(:response) { last_response }
+
+    context 'with local storage' do
+      before do
+        request!
+      end
+
+      it 'should respond with HTTP Not Found' do
+        expect(subject.status).to eq(404)
+      end
+    end
+    
+    context(
+      'with remote AWS storage',
+      with_config: {
+        attachments_storage: :fog,
+        fog: {
+          directory: 'my-bucket',
+          credentials: {
+            provider: 'AWS',
+            aws_access_key_id: 'someaccesskeyid',
+            aws_secret_access_key: 'someprivateaccesskey',
+            region: 'us-east-1'
+          }
+        }
+      }
+    ) do
+      before do
+        request!
+      end
+
+      context 'with no filesize metadata' do
+        let(:metadata) { { fileName: 'cat.png' }.to_json }
+
+        it 'should respond with 422 due to missing file size metadata' do
+          expect(subject.status).to eq(422)
+          expect(subject.body).to include 'fileSize'
+        end
+      end
+
+      context 'with the correct parameters' do
+        let(:json) { JSON.parse subject.body }
+
+        it 'should prepare a direct upload' do
+          expect(subject.status).to eq 201
+
+          expect(json["_type"]).to eq "AttachmentUpload"
+          expect(json["fileName"]).to eq "cat.png"
+        end
+
+        describe 'response' do
+          describe '_links' do
+            describe 'container' do
+              let(:link) { json.dig "_links", "container" }
+
+              before do
+                expect(link).to be_present
+              end
+
+              it "it points to the expected container" do
+                expect(link["href"]).to eq container_href
+              end
+            end
+
+            describe 'addAttachment' do
+              let(:link) { json.dig "_links", "addAttachment" }
+
+              before do
+                expect(link).to be_present
+              end
+
+              it 'should point to AWS' do
+                expect(link["href"]).to eq "https://my-bucket.s3.amazonaws.com/"
+              end
+
+              it 'should have the method POST' do
+                expect(link["method"]).to eq "post"
+              end
+
+              it 'should include form fields' do
+                fields = link["form_fields"]
+
+                expect(fields).to be_present
+                expect(fields).to include(
+                  "key", "acl", "policy",
+                  "X-Amz-Signature", "X-Amz-Credential", "X-Amz-Algorithm", "X-Amz-Date",
+                  "success_action_status"
+                )
+
+                expect(fields["key"]).to end_with "cat.png"
+              end
+            end
+          end
+        end
+      end
+    end
+  end
+end
+
 shared_examples 'an APIv3 attachment resource', type: :request, content_type: :json do |include_by_container = true|
   include Rack::Test::Methods
   include API::V3::Utilities::PathHelper
@@ -366,6 +521,11 @@ shared_examples 'an APIv3 attachment resource', type: :request, content_type: :j
   end
 
   context 'by container', if: include_by_container do
+    it_behaves_like 'it supports direct uploads' do
+      let(:request_path) { "/api/v3/#{attachment_type}s/#{container.id}/attachments/prepare" }
+      let(:container_href) { "/api/v3/#{attachment_type}s/#{container.id}" }
+    end
+
     subject(:response) { last_response }
 
     describe '#get' do
