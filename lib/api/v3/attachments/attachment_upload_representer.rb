@@ -75,7 +75,6 @@ module API
         def initialize(attachment, options = {})
           super
 
-          url = Setting.protocol + "://" + Setting.host_name + API::V3::Utilities::PathHelper::ApiV3Path.attachment_uploaded(attachment.id)
           fog_hash = DirectFogUploader.direct_fog_hash attachment: attachment
 
           @form_url = fog_hash[:uri]
@@ -121,7 +120,7 @@ module API
 
         link :completeUpload do
           {
-            href: "/api/v3/attachments/#{attachment.id}/uploaded"
+            href: api_v3_paths.attachment_uploaded(attachment.id)
           }
         end
 
