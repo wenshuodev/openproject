@@ -108,7 +108,6 @@ RSpec.configure do |config|
     end
 
     example.metadata[:with_config] = Hash(example.metadata[:with_config]).merge(
-      edition: 'bim',
       attachments_storage: :fog,
       fog: {
         directory: 'my-bucket',
