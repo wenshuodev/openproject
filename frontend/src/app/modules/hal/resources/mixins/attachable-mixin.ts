@@ -32,6 +32,7 @@ import {OpenProjectFileUploadService, UploadFile} from 'core-components/api/op-f
 import {HalResourceNotificationService} from "core-app/modules/hal/services/hal-resource-notification.service";
 import {PathHelperService} from 'core-app/modules/common/path-helper/path-helper.service';
 import {NotificationsService} from 'core-app/modules/common/notifications/notifications.service';
+import {ConfigurationService} from 'core-app/modules/common/config/configuration.service';
 import {HttpErrorResponse} from "@angular/common/http";
 import { OpenProjectDirectFileUploadService } from 'core-app/components/api/op-file-upload/op-direct-file-upload.service';
 
@@ -46,6 +47,7 @@ export function Attachable<TBase extends Constructor<HalResource>>(Base:TBase) {
     private opFileUpload:OpenProjectFileUploadService;
     private opDirectFileUpload:OpenProjectDirectFileUploadService;
     private pathHelper:PathHelperService;
+    private config:ConfigurationService;
 
     /**
      * Can be used in the mixed in class to disable
@@ -168,14 +170,10 @@ export function Attachable<TBase extends Constructor<HalResource>>(Base:TBase) {
     }
 
     private performUpload(files:UploadFile[]) {
-      let href: string = "";
+      let href: string = this.directUploadURL || '';
 
-      if (this.isDirectUpload) {
-        if (this.$links.prepareAttachment) {
-          return this.opDirectFileUpload.uploadAndMapResponse(this.$links.prepareAttachment.href, files);
-        } else if (this.isNew) {
-          return this.opDirectFileUpload.uploadAndMapResponse(this.pathHelper.api.v3.attachments.path + '/prepare', files);
-        }
+      if (href) {
+        return this.opDirectFileUpload.uploadAndMapResponse(href, files);
       } else if (this.isNew || !this.id || !this.attachmentsBackend) {
         href = this.pathHelper.api.v3.attachments.path;
       } else {
@@ -185,8 +183,16 @@ export function Attachable<TBase extends Constructor<HalResource>>(Base:TBase) {
       return this.opFileUpload.uploadAndMapResponse(href, files);
     }
 
-    private get isDirectUpload():boolean {
-      return window.OpenProject.isRemoteAttachments && window.OpenProject.isDirectUploads;
+    private get directUploadURL():string|null {
+      if (this.$links.prepareAttachment) {
+        return this.$links.prepareAttachment.href;
+      }
+
+      if (this.isNew) {
+        return this.config.prepareAttachmentURL
+      } else {
+        return null;
+      }
     }
 
     private updateState() {
@@ -208,7 +214,9 @@ export function Attachable<TBase extends Constructor<HalResource>>(Base:TBase) {
       if (!this.opDirectFileUpload) {
         this.opDirectFileUpload = this.injector.get(OpenProjectDirectFileUploadService);
       }
-
+      if (!this.config) {
+        this.config = this.injector.get(ConfigurationService);
+      }
       if (!this.pathHelper) {
         this.pathHelper = this.injector.get(PathHelperService);
       }

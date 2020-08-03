@@ -43,7 +43,7 @@ module API
             }
           end
 
-          if OpenProject::Configuration.remote_storage?
+          if OpenProject::Configuration.direct_uploads?
             link :prepareAttachment do
               {
                 href: attachments_by_resource + '/prepare',
