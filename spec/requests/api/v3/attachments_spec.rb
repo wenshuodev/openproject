@@ -69,7 +69,7 @@ describe API::V3::Attachments::AttachmentsAPI, type: :request do
 
     describe 'GET /uploaded' do
       let(:digest) { "" }
-      let(:attachment) { FactoryBot.create :attachment, digest: digest, author: current_user, container: nil, container_type: nil }
+      let(:attachment) { FactoryBot.create :attachment, digest: digest, author: current_user, container: nil, container_type: nil, downloads: -1 }
 
       before do
         get "/api/v3/attachments/#{attachment.id}/uploaded"
