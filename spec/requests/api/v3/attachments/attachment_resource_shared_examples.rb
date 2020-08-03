@@ -37,42 +37,7 @@ shared_examples 'it supports direct uploads' do
   let(:container_href) { raise "define me!" }
   let(:request_path) { raise "define me!" }
 
-  let(:fog_attachment_class) do
-    class FogAttachment < Attachment
-      # Remounting the uploader overrides the original file setter taking care of setting,
-      # among other things, the content type. So we have to restore that original
-      # method this way.
-      # We do this in a new, separate class, as to not interfere with any other specs.
-      alias_method :set_file, :file=
-      mount_uploader :file, FogFileUploader
-      alias_method :file=, :set_file
-    end
-
-    FogAttachment
-  end
-
   before do
-    Fog.mock!
-
-    connection = Fog::Storage.new provider: "AWS"
-    connection.directories.create key: "my-bucket"
-
-    CarrierWave::Configuration.configure_fog!(
-      credentials: OpenProject::Configuration.fog_credentials,
-      directory: "my-bucket",
-      public: false
-    )
-
-    allow(Attachment).to receive(:create) do |*args|
-      # We don't use create here because this would cause an infinite loop as FogAttachment's #create
-      # uses the base class's #create which is what we are mocking here. All this is necessary to begin
-      # with because the Attachment class is initialized with the LocalFileUploader before this test
-      # is ever run and we need remote attachments using the FogFileUploader in this scenario.
-      record = fog_attachment_class.new *args
-      record.save
-      record
-    end
-
     allow(User).to receive(:current).and_return current_user
   end
 
@@ -97,21 +62,7 @@ shared_examples 'it supports direct uploads' do
       end
     end
     
-    context(
-      'with remote AWS storage',
-      with_config: {
-        attachments_storage: :fog,
-        fog: {
-          directory: 'my-bucket',
-          credentials: {
-            provider: 'AWS',
-            aws_access_key_id: 'someaccesskeyid',
-            aws_secret_access_key: 'someprivateaccesskey',
-            region: 'us-east-1'
-          }
-        }
-      }
-    ) do
+    context 'with remote AWS storage', with_direct_uploads: true do
       before do
         request!
       end
