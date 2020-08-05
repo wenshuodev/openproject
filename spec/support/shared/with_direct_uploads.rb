@@ -38,10 +38,25 @@ class FogAttachment < Attachment
   alias_method :file=, :set_file
 end
 
-RSpec.configure do |config|
-  config.before(:each) do |example|
-    next unless example.metadata[:with_direct_uploads]
+class WithDirectUploads
+  attr_reader :context, :example
 
+  def initialize(context, example)
+    @context = context
+    @example = example
+  end
+
+  ##
+  # We need this so calls to rspec mocks (allow, expect etc.) will work here as expected.
+  def method_missing(method, *args, &block)
+    if context.respond_to?(method)
+      context.send method, *args, &block
+    else
+      super
+    end
+  end
+
+  def mock_fog
     allow(Attachment).to receive(:create) do |*args|
       # We don't use create here because this would cause an infinite loop as FogAttachment's #create
       # uses the base class's #create which is what we are mocking here. All this is necessary to begin
@@ -58,7 +73,9 @@ RSpec.configure do |config|
     connection.directories.create key: "my-bucket"
 
     CarrierWave::Configuration.configure_fog!
+  end
 
+  def stub_frontend
     proxy.stub("https://" + OpenProject::Configuration.remote_storage_host + ":443/", method: 'options').and_return(
       headers: {
         'Access-Control-Allow-Methods' => 'POST',
@@ -68,58 +85,72 @@ RSpec.configure do |config|
     )
 
     if example.metadata[:with_direct_uploads] == :redirect
-      proxy
-        .stub("https://" + OpenProject::Configuration.remote_storage_host + ":443/", method: 'post')
-        .and_return(Proc.new { |params, headers, body, url, method|
-          key = body.scan(/key"\s*([^\s]+)\s/m).flatten.first
-          redirect_url = body.scan(/success_action_redirect"\s*(http[^\s]+)\s/m).flatten.first
-          ok = body =~ /X-Amz-Signature/ # check that the expected post to AWS was made with the form fields
-
-          {
-            code: ok ? 302 : 403,
-            headers: {
-              'Location' => ok ? redirect_url + '?key=' + CGI.escape(key) : nil,
-              'Access-Control-Allow-Methods' => 'POST',
-              'Access-Control-Allow-Origin'  => '*'
-            }
-          }
-        })
+      stub_with_redirect
     else # use status response instead of redirect by default
-      proxy
-        .stub("https://" + OpenProject::Configuration.remote_storage_host + ":443/", method: 'post')
-        .and_return(Proc.new { |params, headers, body, url, method|
-          {
-            code: (body =~ /X-Amz-Signature/) ? 201 : 403, # check that the expected post to AWS was made with the form fields
-            headers: {
-              'Access-Control-Allow-Methods' => 'POST',
-              'Access-Control-Allow-Origin'  => '*'
-            }
-          }
-        })
+      stub_with_status
     end
   end
 
-  config.around(:each) do |example|
-    enabled = example.metadata[:with_direct_uploads]
+  def stub_with_redirect
+    proxy
+      .stub("https://" + OpenProject::Configuration.remote_storage_host + ":443/", method: 'post')
+      .and_return(Proc.new { |params, headers, body, url, method|
+        key = body.scan(/key"\s*([^\s]+)\s/m).flatten.first
+        redirect_url = body.scan(/success_action_redirect"\s*(http[^\s]+)\s/m).flatten.first
+        ok = body =~ /X-Amz-Signature/ # check that the expected post to AWS was made with the form fields
 
-    unless enabled
-      example.run
-      next
-    end
+        {
+          code: ok ? 302 : 403,
+          headers: {
+            'Location' => ok ? redirect_url + '?key=' + CGI.escape(key) : nil,
+            'Access-Control-Allow-Methods' => 'POST',
+            'Access-Control-Allow-Origin'  => '*'
+          }
+        }
+      })
+  end
 
-    example.metadata[:with_config] = Hash(example.metadata[:with_config]).merge(
+  def stub_with_status
+    proxy
+      .stub("https://" + OpenProject::Configuration.remote_storage_host + ":443/", method: 'post')
+      .and_return(Proc.new { |params, headers, body, url, method|
+        {
+          code: (body =~ /X-Amz-Signature/) ? 201 : 403, # check that the expected post to AWS was made with the form fields
+          headers: {
+            'Access-Control-Allow-Methods' => 'POST',
+            'Access-Control-Allow-Origin'  => '*'
+          }
+        }
+      })
+  end
+
+  def stub_config
+    WithConfig.new(context, example).apply(config)
+  end
+
+  def config
+    {
       attachments_storage: :fog,
       fog: {
         directory: 'my-bucket',
         credentials: {
           provider: 'AWS',
-          aws_access_key_id: 'someaccesskeyid',
-          aws_secret_access_key: 'someprivateaccesskey',
+          aws_access_key_id: 'super-secret-access-key-id',
+          aws_secret_access_key: 'super-secret-access-key',
           region: 'us-east-1'
         }
       }
-    )
+    }
+  end
 
+  def before
+    stub_config
+
+    mock_fog
+    stub_frontend if example.metadata[:js]
+  end
+
+  def around
     example.metadata[:driver] = :headless_firefox_billy
 
     csp_config = SecureHeaders::Configuration.instance_variable_get("@default_config").csp
@@ -130,5 +161,24 @@ RSpec.configure do |config|
     ensure
       csp_config.connect_src = %w('self')
     end
+  end
+end
+
+RSpec.configure do |config|
+  config.before(:each) do |example|
+    next unless example.metadata[:with_direct_uploads]
+
+    WithDirectUploads.new(self, example).before
+  end
+
+  config.around(:each) do |example|
+    enabled = example.metadata[:with_direct_uploads]
+
+    unless enabled
+      example.run
+      next
+    end
+
+    WithDirectUploads.new(self, example).around
   end
 end
