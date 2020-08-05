@@ -29,6 +29,11 @@ class DirectFogUploader < FogFileUploader
       uploader.use_action_status = true
     end
 
+    puts "//////DIRECT UPLOADS/////"
+    puts "Storage:   #{OpenProject::Configuration.attachments_storage}"
+    puts "Fog creds: #{OpenProject::Configuration.fog_credentials}"
+    puts "//////DIRECT UPLOADS/////"
+
     hash = uploader.direct_fog_hash(enforce_utf8: false)
 
     if success_action_redirect.present?
