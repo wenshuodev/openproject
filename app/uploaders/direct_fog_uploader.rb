@@ -10,7 +10,7 @@ class DirectFogUploader < FogFileUploader
   def self.for_uploader(fog_file_uploader)
     raise ArgumentError, "FogFileUploader expected" unless fog_file_uploader.is_a? FogFileUploader
 
-    uploader = DirectFogUploader.new
+    uploader = self.new
 
     uploader.instance_variable_set "@file", fog_file_uploader.file
     uploader.instance_variable_set "@key", fog_file_uploader.path
@@ -28,11 +28,6 @@ class DirectFogUploader < FogFileUploader
       uploader.success_action_status = success_action_status
       uploader.use_action_status = true
     end
-
-    puts "//////DIRECT UPLOADS/////"
-    puts "Storage:   #{OpenProject::Configuration.attachments_storage}"
-    puts "Fog creds: #{OpenProject::Configuration.fog_credentials}"
-    puts "//////DIRECT UPLOADS/////"
 
     hash = uploader.direct_fog_hash(enforce_utf8: false)
 

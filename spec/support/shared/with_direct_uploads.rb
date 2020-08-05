@@ -85,13 +85,6 @@ class WithDirectUploads
       record.save
       record
     end
-
-    Fog.mock!
-
-    connection = Fog::Storage.new provider: "AWS"
-    connection.directories.create key: "my-bucket"
-
-    CarrierWave::Configuration.configure_fog!
   end
 
   def stub_frontend(redirect: false)
@@ -143,6 +136,16 @@ class WithDirectUploads
       })
   end
 
+  # def stub_direct_uploader
+  #   creds = config[:fog][:credentials]
+
+  #   allow_any_instance_of(DirectFogUploader).to receive(:aws_access_key_id).and_return creds[:aws_access_key_id]
+  #   allow_any_instance_of(DirectFogUploader).to receive(:aws_secret_access_key).and_return creds[:aws_secret_access_key]
+  #   allow_any_instance_of(DirectFogUploader).to receive(:provider).and_return creds[:provider]
+  #   allow_any_instance_of(DirectFogUploader).to receive(:region).and_return creds[:region]
+  #   allow_any_instance_of(DirectFogUploader).to receive(:directory).and_return config[:fog][:directory]
+  # end
+
   def stub_config(example)
     WithConfig.new(context).before example, config
   end
@@ -151,13 +154,8 @@ class WithDirectUploads
     {
       attachments_storage: :fog,
       fog: {
-        directory: 'my-bucket',
-        credentials: {
-          provider: 'AWS',
-          aws_access_key_id: 'super-secret-access-key-id',
-          aws_secret_access_key: 'super-secret-access-key',
-          region: 'us-east-1'
-        }
+        directory: MockCarrierwave.bucket,
+        credentials: MockCarrierwave.credentials
       }
     }
   end
