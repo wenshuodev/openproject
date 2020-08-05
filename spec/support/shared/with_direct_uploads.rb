@@ -159,6 +159,8 @@ RSpec.configure do |config|
   config.before(:each) do |example|
     next unless example.metadata[:with_direct_uploads]
 
+    WithDirectUploads.new(self).before example
+
     class FogAttachment < Attachment
       # Remounting the uploader overrides the original file setter taking care of setting,
       # among other things, the content type. So we have to restore that original
@@ -168,8 +170,6 @@ RSpec.configure do |config|
       mount_uploader :file, FogFileUploader
       alias_method :file=, :set_file
     end
-
-    WithDirectUploads.new(self).before example
   end
 
   config.around(:each) do |example|
