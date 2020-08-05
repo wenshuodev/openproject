@@ -28,11 +28,10 @@
 #++
 
 class WithConfig
-  attr_reader :context, :example
+  attr_reader :context
 
-  def initialize(context, example)
+  def initialize(context)
     @context = context
-    @example = example
   end
 
   ##
@@ -49,7 +48,7 @@ class WithConfig
   # Stubs the given configurations.
   #
   # @config [Hash] Hash containing the configurations with keys as seen in `configuration.rb`.
-  def apply(config)
+  def before(example, config)
     allow(OpenProject::Configuration).to receive(:[]).and_call_original
 
     aggregate_mocked_configuration(example, config)
@@ -86,6 +85,6 @@ RSpec.configure do |config|
   config.before(:each) do |example|
     with_config = example.metadata[:with_config]
 
-    WithConfig.new(self, example).apply(with_config) if with_config.present?
+    WithConfig.new(self).before example, with_config if with_config.present?
   end
 end

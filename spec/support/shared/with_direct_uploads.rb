@@ -39,11 +39,10 @@ class FogAttachment < Attachment
 end
 
 class WithDirectUploads
-  attr_reader :context, :example
+  attr_reader :context
 
-  def initialize(context, example)
+  def initialize(context)
     @context = context
-    @example = example
   end
 
   ##
@@ -53,6 +52,26 @@ class WithDirectUploads
       context.send method, *args, &block
     else
       super
+    end
+  end
+
+  def before(example)
+    stub_config example
+
+    mock_fog
+    stub_frontend redirect: example.metadata[:with_direct_uploads] == :redirect if example.metadata[:js]
+  end
+
+  def around(example)
+    example.metadata[:driver] = :headless_firefox_billy
+
+    csp_config = SecureHeaders::Configuration.instance_variable_get("@default_config").csp
+    csp_config.connect_src = ["'self'", "my-bucket.s3.amazonaws.com"]
+
+    begin
+      example.run
+    ensure
+      csp_config.connect_src = %w('self')
     end
   end
 
@@ -75,7 +94,7 @@ class WithDirectUploads
     CarrierWave::Configuration.configure_fog!
   end
 
-  def stub_frontend
+  def stub_frontend(redirect: false)
     proxy.stub("https://" + OpenProject::Configuration.remote_storage_host + ":443/", method: 'options').and_return(
       headers: {
         'Access-Control-Allow-Methods' => 'POST',
@@ -84,7 +103,7 @@ class WithDirectUploads
       code: 200
     )
 
-    if example.metadata[:with_direct_uploads] == :redirect
+    if redirect
       stub_with_redirect
     else # use status response instead of redirect by default
       stub_with_status
@@ -124,8 +143,8 @@ class WithDirectUploads
       })
   end
 
-  def stub_config
-    WithConfig.new(context, example).apply(config)
+  def stub_config(example)
+    WithConfig.new(context).before example, config
   end
 
   def config
@@ -142,33 +161,13 @@ class WithDirectUploads
       }
     }
   end
-
-  def before
-    stub_config
-
-    mock_fog
-    stub_frontend if example.metadata[:js]
-  end
-
-  def around
-    example.metadata[:driver] = :headless_firefox_billy
-
-    csp_config = SecureHeaders::Configuration.instance_variable_get("@default_config").csp
-    csp_config.connect_src = ["'self'", "my-bucket.s3.amazonaws.com"]
-
-    begin
-      example.run
-    ensure
-      csp_config.connect_src = %w('self')
-    end
-  end
 end
 
 RSpec.configure do |config|
   config.before(:each) do |example|
     next unless example.metadata[:with_direct_uploads]
 
-    WithDirectUploads.new(self, example).before
+    WithDirectUploads.new(self).before example
   end
 
   config.around(:each) do |example|
@@ -179,6 +178,6 @@ RSpec.configure do |config|
       next
     end
 
-    WithDirectUploads.new(self, example).around
+    WithDirectUploads.new(self).around example
   end
 end
