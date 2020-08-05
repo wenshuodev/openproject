@@ -61,7 +61,7 @@ class WithDirectUploads
     mock_fog
     stub_frontend redirect: example.metadata[:with_direct_uploads] == :redirect if example.metadata[:js]
 
-    stub_direct_uploader
+    stub_uploader
   end
 
   def around(example)
@@ -138,14 +138,16 @@ class WithDirectUploads
       })
   end
 
-  def stub_direct_uploader
+  def stub_uploader
     creds = config[:fog][:credentials]
 
-    allow_any_instance_of(DirectFogUploader).to receive(:aws_access_key_id).and_return creds[:aws_access_key_id]
-    allow_any_instance_of(DirectFogUploader).to receive(:aws_secret_access_key).and_return creds[:aws_secret_access_key]
-    allow_any_instance_of(DirectFogUploader).to receive(:provider).and_return creds[:provider]
-    allow_any_instance_of(DirectFogUploader).to receive(:region).and_return creds[:region]
-    allow_any_instance_of(DirectFogUploader).to receive(:directory).and_return config[:fog][:directory]
+    allow_any_instance_of(FogFileUploader).to receive(:fog_credentials).and_return creds
+
+    allow_any_instance_of(FogFileUploader).to receive(:aws_access_key_id).and_return creds[:aws_access_key_id]
+    allow_any_instance_of(FogFileUploader).to receive(:aws_secret_access_key).and_return creds[:aws_secret_access_key]
+    allow_any_instance_of(FogFileUploader).to receive(:provider).and_return creds[:provider]
+    allow_any_instance_of(FogFileUploader).to receive(:region).and_return creds[:region]
+    allow_any_instance_of(FogFileUploader).to receive(:directory).and_return config[:fog][:directory]
   end
 
   def stub_config(example)
