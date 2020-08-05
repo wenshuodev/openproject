@@ -108,7 +108,7 @@ shared_examples 'it supports direct uploads' do
               end
 
               it 'should point to AWS' do
-                expect(link["href"]).to eq "https://my-bucket.s3.amazonaws.com/"
+                expect(link["href"]).to eq "https://#{MockCarrierwave.bucket}.s3.amazonaws.com/"
               end
 
               it 'should have the method POST' do
