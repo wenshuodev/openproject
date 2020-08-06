@@ -46,13 +46,13 @@ module API
           }
         end
 
-        if OpenProject::Configuration.direct_uploads?
-          link :prepareAttachment do
-            {
-              href: api_v3_paths.prepare_new_attachment_upload,
-              method: :post
-            }
-          end
+        link :prepareAttachment do
+          next unless OpenProject::Configuration.direct_uploads?
+
+          {
+            href: api_v3_paths.prepare_new_attachment_upload,
+            method: :post
+          }
         end
 
         property :maximum_attachment_file_size,
