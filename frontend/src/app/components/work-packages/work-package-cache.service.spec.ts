@@ -35,6 +35,7 @@ import {OpenprojectHalModule} from 'core-app/modules/hal/openproject-hal.module'
 import {WorkPackageResource} from 'core-app/modules/hal/resources/work-package-resource';
 import {HalResourceService} from 'core-app/modules/hal/services/hal-resource.service';
 import {OpenProjectFileUploadService} from 'core-components/api/op-file-upload/op-file-upload.service';
+import {OpenProjectDirectFileUploadService} from "core-components/api/op-file-upload/op-direct-file-upload.service";
 import {SchemaCacheService} from 'core-components/schemas/schema-cache.service';
 import {States} from 'core-components/states.service';
 import {WorkPackageCacheService} from 'core-components/work-packages/work-package-cache.service';
@@ -75,7 +76,8 @@ describe('WorkPackageCacheService', () => {
         {provide: NotificationsService, useValue: {}},
         {provide: HalResourceNotificationService, useValue: {handleRawError: () => false}},
         {provide: WorkPackageNotificationService, useValue: {}},
-        {provide: OpenProjectFileUploadService, useValue: {}}
+        {provide: OpenProjectFileUploadService, useValue: {}},
+        {provide: OpenProjectDirectFileUploadService, useValue: {}},
       ]
     });
 
