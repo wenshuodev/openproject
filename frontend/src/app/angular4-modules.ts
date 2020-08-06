@@ -48,6 +48,7 @@ import {OpenprojectPluginsModule} from "core-app/modules/plugins/openproject-plu
 import {ConfirmFormSubmitController} from "core-components/modals/confirm-form-submit/confirm-form-submit.directive";
 import {ProjectMenuAutocompleteComponent} from "core-components/projects/project-menu-autocomplete/project-menu-autocomplete.component";
 import {OpenProjectFileUploadService} from "core-components/api/op-file-upload/op-file-upload.service";
+import {OpenProjectDirectFileUploadService} from './components/api/op-file-upload/op-direct-file-upload.service';
 import {LinkedPluginsModule} from "core-app/modules/plugins/linked-plugins.module";
 import {HookService} from "core-app/modules/plugins/hook-service";
 import {ModalWrapperAugmentService} from "core-app/globals/augmenting/modal-wrapper.augment.service";
@@ -75,7 +76,6 @@ import {KeyboardShortcutService} from "core-app/modules/a11y/keyboard-shortcut-s
 import {globalDynamicComponents} from "core-app/global-dynamic-components.const";
 import {OpenprojectMembersModule} from "core-app/modules/members/members.module";
 import {OpenprojectEnterpriseModule} from "core-components/enterprise/openproject-enterprise.module";
-import { OpenProjectDirectFileUploadService } from './components/api/op-file-upload/op-direct-file-upload.service';
 
 @NgModule({
   imports: [
