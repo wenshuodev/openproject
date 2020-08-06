@@ -45,10 +45,10 @@ describe Attachments::CleanupUncontaineredJob, type: :job do
     FactoryBot.create(:attachment, created_at: Time.now - grace_period.minutes, digest: "0x42")
   end
   let!(:old_pending_upload) do
-    FactoryBot.create(:attachment, created_at: Time.now - grace_period.minutes, digest: "")
+    FactoryBot.create(:attachment, created_at: Time.now - grace_period.minutes, digest: "", downloads: -1)
   end
   let!(:new_pending_upload) do
-    FactoryBot.create(:attachment, created_at: Time.now - (grace_period - 1).minutes, digest: "")
+    FactoryBot.create(:attachment, created_at: Time.now - (grace_period - 1).minutes, digest: "", downloads: -1)
   end
 
   let(:job) { described_class.new }
